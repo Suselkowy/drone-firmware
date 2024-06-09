@@ -5,6 +5,12 @@ BLEIntCharacteristic joyStick1Characteristic("19b10001-e8f2-537e-4f6c-d104768a12
 BLEIntCharacteristic joyStick2Characteristic("19b10003-e8f2-537e-4f6c-d104768a1214", BLERead | BLEWrite | BLENotify);
 BLEIntCharacteristic startButtonCharacteristic("19b10009-e8f2-537e-4f6c-d104768a1214", BLERead | BLEWrite | BLENotify);
 
+#include "Wire.h"
+#include <MPU6050_light.h>
+
+MPU6050 mpu(Wire);
+unsigned long timer = 0;
+
 void handler1(BLEDevice central, BLECharacteristic characteristic){
   signed char values[2];
   characteristic.readValue(values, 2);
@@ -81,6 +87,19 @@ void blePeripheralDisconnectHandler(BLEDevice central) {
 
 void setup() {
   Serial.begin(9600);
+  Wire.begin();
+  
+  byte status = mpu.begin();
+  Serial.print(F("MPU6050 status: "));
+  Serial.println(status);
+  while(status!=0){ } // stop everything if could not connect to MPU6050
+  
+  Serial.println(F("Calculating offsets, do not move MPU6050"));
+  delay(1000);
+  // mpu.upsideDownMounting = true; // uncomment this line if the MPU6050 is mounted upside-down
+  mpu.calcOffsets(); // gyro and accelero
+
+
   if (!BLE.begin()) {                                           // begin initialization
     while (1);                                                  // wait until initialization complete
   }
@@ -99,10 +118,29 @@ void setup() {
   BLE.setEventHandler(BLEDisconnected, blePeripheralDisconnectHandler); 
   BLE.addService(LEDService);                                   // add service
   BLE.advertise();
-  Serial.write("Start\n");                                                 // start advertising
+  Serial.write("Start\n");   
+  allEngines(IDDLE_OFF);
+
+  
+  
+                                                // start advertising
 }
  
 void loop() {
   BLEDevice central = BLE.central();                            // listen for BLE devices to connect:                                                         //end of while loop
                                                                 // you can put code here for what todo when not connected
+
+  mpu.update();
+  
+  if((millis()-timer)>10){ // print data every 10ms
+	Serial.print("X : ");
+	Serial.print(mpu.getAngleX());
+	Serial.print("\tY : ");
+	Serial.print(mpu.getAngleY());
+	Serial.print("\tZ : ");
+	Serial.println(mpu.getAngleZ());
+	timer = millis();  
+  }
+
+  //  allEngines(IDDLE_OFF);
 }                   
