@@ -3,6 +3,8 @@
 #include "config.h"
 #include "engines.h"
 
+enum { STOP, FLY };
+
 void myLedWrite(int channel, int duty);
 void setUpPin(int pin, int channel);
 void setUpPwm();

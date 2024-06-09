@@ -18,6 +18,7 @@ static const int pinRigthDown = D10;
 static const int channelRigthDown = 3;
 
 #define IDDLE 128 // 120
+#define STABLE IDDLE // 120
 #define IDDLE_OFF 120
 #define START_PWM 240
 #define PWM_HZ 400
