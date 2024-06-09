@@ -11,7 +11,7 @@ BLEIntCharacteristic startButtonCharacteristic("19b10009-e8f2-537e-4f6c-d104768a
 MPU6050 mpu(Wire);
 unsigned long timer = 0;
 
-int desiredThrottle = STABLE;
+int desiredThrottle = 0;
 int desiredYaw = 0;
 int desiredPitch = 0;
 int desiredRoll = 0;
@@ -33,7 +33,7 @@ void handler1(BLEDevice central, BLECharacteristic characteristic){
 
 int normalize(int x) {
   // return ((x+100.0)/200.0) * 128;
-  return IDDLE + (((x))/100.0) * 50;
+  return (((x))/100.0) * 40;
 }
 
 void leding_time(int val1, int val2) {
@@ -100,10 +100,10 @@ void stablize() {
   float desiredAltitude = desiredThrottle - 0;
   
   float kp = 0.5; // Proportional gain, tune this value
-  motorSpeed[0] = kp * (-pitchError + rollError + desiredAltitude);
-  motorSpeed[1] = kp * (-pitchError - rollError + desiredAltitude);
-  motorSpeed[2] = kp * (pitchError - rollError + desiredAltitude);
-  motorSpeed[3] = kp * (pitchError + rollError + desiredAltitude);
+  motorSpeed[0] = STABLE + kp * (-pitchError + rollError + desiredAltitude);
+  motorSpeed[1] = STABLE + kp * (-pitchError - rollError + desiredAltitude);
+  motorSpeed[2] = STABLE + kp * (pitchError - rollError + desiredAltitude);
+  motorSpeed[3] = STABLE + kp * (pitchError + rollError + desiredAltitude);
 
   myLedWrite(channelLeftUp, motorSpeed[0]); 
   myLedWrite(channelRightUp, motorSpeed[1]); 
