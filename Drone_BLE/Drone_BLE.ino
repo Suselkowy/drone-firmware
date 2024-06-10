@@ -20,15 +20,13 @@ int state = STOP;
 
 int motorSpeed[4];
 
-void handler1(BLEDevice central, BLECharacteristic characteristic){
-//   signed char values[2];
-//   characteristic.readValue(values, 2);
-
-//   Serial.write("JoyStick 1 X: ");
-//   Serial.print(values[0], DEC);
-//   Serial.write("JoyStick 1 Y: ");
-//   Serial.print(values[1], DEC);
-//   Serial.write("\n");
+void stop() {
+  state = STOP;
+  desiredThrottle = 0;
+  desiredYaw = 0;
+  desiredPitch = 0;
+  desiredRoll = 0;
+  allEngines(0);
 }
 
 int normalize(int x) {
@@ -40,26 +38,15 @@ void leding_time(int val1, int val2) {
   // Serial.print(val1, DEC);
   // Serial.write(" ");
   // Serial.print(val2, DEC);
-  // Serial.write("\n");
-  
-  // if( (val1) == 0 ) {
-  //   allEngines(IDDLE_OFF);
-  //   return;
-  // }
-  // if( (val1) < 0 ) {
-  //   myLedWrite(channelLeftUp, IDDLE); 
-  //   return;
-  // }
-  // myLedWrite(channelLeftUp, normalize(val1)); 
-  
-  // allEngines(normalize(val1));
-  desiredThrottle = normalize(val1);
+  // // Serial.write("\n");
+  // desiredThrottle = normalize(val2);
 }
 
-void handler2(BLEDevice central, BLECharacteristic characteristic){
+void handler1(BLEDevice central, BLECharacteristic characteristic){
   signed char values[2];
   characteristic.readValue(values, 2);
-  leding_time(values[0], values[1]);
+  // leding_time(values[0], values[1]);
+  desiredThrottle = normalize(values[1]);
   
   // Serial.write("\n");
 
@@ -71,6 +58,19 @@ void handler2(BLEDevice central, BLECharacteristic characteristic){
   // Serial.write("\n");
 }
 
+void handler2(BLEDevice central, BLECharacteristic characteristic){
+  // signed char values[2];
+  // characteristic.readValue(values, 2);
+  // desiredRoll = normalize(values[0])/3.0;
+  // desiredPitch = normalize(values[1])/3.0;
+//   Serial.write("JoyStick 1 X: ");
+//   Serial.print(values[0], DEC);
+//   Serial.write("JoyStick 1 Y: ");
+//   Serial.print(values[1], DEC);
+//   Serial.write("\n");
+}
+
+
 void startButtonHandler(BLEDevice central, BLECharacteristic characteristic) {
   signed char value[1];
   characteristic.readValue(value, 1);
@@ -78,9 +78,7 @@ void startButtonHandler(BLEDevice central, BLECharacteristic characteristic) {
   Serial.print(*value, DEC);
   switch(*value) {
     case 0:
-      state = STOP;
-      desiredThrottle = IDDLE;
-      allEngines(0);
+      stop();
     break;
     case 1:
       Serial.write("IT'S MORBING TIME \n");
@@ -105,6 +103,10 @@ void stablize() {
   motorSpeed[2] = STABLE + kp * (-pitchError + rollError + desiredAltitude);
   motorSpeed[3] = STABLE + kp * (-pitchError - rollError + desiredAltitude);
 
+  for( int i = 0 ; i < sizeof(motorSpeed)/sizeof(int); ++i ) {
+    motorSpeed[i] = min(max(motorSpeed[i], IDDLE),255);
+  }
+
   myLedWrite(channelLeftUp, motorSpeed[0]); 
   myLedWrite(channelRightUp, motorSpeed[1]); 
   myLedWrite(channelRigthDown, motorSpeed[2]); 
@@ -121,6 +123,7 @@ void blePeripheralConnectHandler(BLEDevice central) {
 
 void blePeripheralDisconnectHandler(BLEDevice central) {
   // central disconnected event handler
+  stop();
   Serial.print("Disconnected event, central: ");
   Serial.println(central.address());
 }
@@ -164,29 +167,21 @@ void setup() {
   // allEngines(IDDLE_OFF);
   // state = FLY;
   //startUpEngines();
-
-
-  
-  
-                                                // start advertising
 }
  
 void loop() {
-  BLEDevice central = BLE.central();                            // listen for BLE devices to connect:                                                         //end of while loop
-                                                                // you can put code here for what todo when not connected
 
-  mpu.update();
-  
+  mpu.update();  
   if((millis()-timer)>10){ // print data every 10ms
-	// Serial.print("X : ");
-	// Serial.print(mpu.getAngleX());
-	// Serial.print("\tY : ");
-	// Serial.print(mpu.getAngleY());
-	// Serial.print("\tZ : ");
-	// Serial.println(mpu.getAngleZ());
-	timer = millis();  
-  stablize();
+    // Serial.print("X : ");
+    // Serial.print(mpu.getAngleX());
+    // Serial.print("\tY : ");
+    // Serial.print(mpu.getAngleY());
+    // Serial.print("\tZ : ");
+    // Serial.println(mpu.getAngleZ());
+    timer = millis();  
+    if( state == FLY ) {
+      stablize();
+    }
   }
-
-  //  allEngines(IDDLE_OFF);
 }                   
