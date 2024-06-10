@@ -95,15 +95,15 @@ void stablize() {
   if( state != FLY )
     return;
   // float yawError = desiredYaw - mpu.getAngleX();
-  float pitchError = desiredPitch +  mpu.getAngleY();
-  float rollError = desiredRoll + mpu.getAngleX();
+  float pitchError = desiredPitch - mpu.getAngleY();
+  float rollError = desiredRoll - mpu.getAngleX();
   float desiredAltitude = desiredThrottle - 0;
   
   float kp = 0.5; // Proportional gain, tune this value
-  motorSpeed[0] = STABLE + kp * (-pitchError + rollError + desiredAltitude);
-  motorSpeed[1] = STABLE + kp * (-pitchError - rollError + desiredAltitude);
-  motorSpeed[2] = STABLE + kp * (pitchError - rollError + desiredAltitude);
-  motorSpeed[3] = STABLE + kp * (pitchError + rollError + desiredAltitude);
+  motorSpeed[0] = STABLE + kp * (pitchError - rollError + desiredAltitude);
+  motorSpeed[1] = STABLE + kp * (pitchError + rollError + desiredAltitude);
+  motorSpeed[2] = STABLE + kp * (-pitchError + rollError + desiredAltitude);
+  motorSpeed[3] = STABLE + kp * (-pitchError - rollError + desiredAltitude);
 
   myLedWrite(channelLeftUp, motorSpeed[0]); 
   myLedWrite(channelRightUp, motorSpeed[1]); 
