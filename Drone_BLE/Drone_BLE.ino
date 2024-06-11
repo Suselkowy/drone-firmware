@@ -4,12 +4,14 @@ BLEService LEDService("19b10000-e8f2-537e-4f6c-d104768a1214"); // Service UUID
 BLEIntCharacteristic joyStick1Characteristic("19b10001-e8f2-537e-4f6c-d104768a1214", BLERead | BLEWrite | BLENotify);
 BLEIntCharacteristic joyStick2Characteristic("19b10003-e8f2-537e-4f6c-d104768a1214", BLERead | BLEWrite | BLENotify);
 BLEIntCharacteristic startButtonCharacteristic("19b10009-e8f2-537e-4f6c-d104768a1214", BLERead | BLEWrite | BLENotify);
+BLEIntCharacteristic pulseCharacteristic("19b10010-e8f2-537e-4f6c-d104768a1214", BLERead | BLEWrite | BLENotify);
 
 #include "Wire.h"
 #include <MPU6050_light.h>
 
 MPU6050 mpu(Wire);
 unsigned long timer = 0;
+unsigned long pulseTimer = 0;
 
 int desiredThrottle = 0;
 int desiredYaw = 0;
@@ -68,6 +70,12 @@ void handler2(BLEDevice central, BLECharacteristic characteristic){
 //   Serial.write("JoyStick 1 Y: ");
 //   Serial.print(values[1], DEC);
 //   Serial.write("\n");
+}
+
+void pulseHandler(BLEDevice central, BLECharacteristic characteristic){
+  // signed char values[1];
+  // characteristic.readValue(values, 1);
+  pulseTimer = millis();
 }
 
 
@@ -142,12 +150,11 @@ void setup() {
   mpu.upsideDownMounting = true; // uncomment this line if the MPU6050 is mounted upside-down
   mpu.calcOffsets(); // gyro and accelero
 
+  setUpPwm();
 
   if (!BLE.begin()) {                                           // begin initialization
     while (1);                                                  // wait until initialization complete
   }
-
-  setUpPwm();
 
   BLE.setLocalName("ESP123");                                  // set advertised local name
   BLE.setAdvertisedService(LEDService);                    // set advertised service UUID
@@ -157,6 +164,9 @@ void setup() {
   joyStick2Characteristic.setEventHandler(BLEWritten, handler2);  
   LEDService.addCharacteristic(startButtonCharacteristic);
   startButtonCharacteristic.setEventHandler(BLEWritten, startButtonHandler);  
+  LEDService.addCharacteristic(pulseCharacteristic);
+  pulseCharacteristic.setEventHandler(BLEWritten, pulseHandler);  
+
   BLE.setEventHandler(BLEConnected, blePeripheralConnectHandler);
   BLE.setEventHandler(BLEDisconnected, blePeripheralDisconnectHandler); 
   BLE.addService(LEDService);                                   // add service
@@ -183,5 +193,11 @@ void loop() {
     if( state == FLY ) {
       stablize();
     }
+  }
+
+
+  if((millis()-pulseTimer)>3000){ 
+    stop();
+    pulseTimer = millis();
   }
 }                   
