@@ -48,7 +48,7 @@ void handler1(BLEDevice central, BLECharacteristic characteristic){
   signed char values[2];
   characteristic.readValue(values, 2);
   // leding_time(values[0], values[1]);
-  desiredThrottle = normalize(values[1]);
+  desiredThrottle = normalize(-values[1]);
   
   // Serial.write("\n");
 
@@ -61,10 +61,10 @@ void handler1(BLEDevice central, BLECharacteristic characteristic){
 }
 
 void handler2(BLEDevice central, BLECharacteristic characteristic){
-  // signed char values[2];
-  // characteristic.readValue(values, 2);
-  // desiredRoll = normalize(values[0])/3.0;
-  // desiredPitch = normalize(values[1])/3.0;
+  signed char values[2];
+  characteristic.readValue(values, 2);
+  desiredRoll = normalize(-values[0])/3.0;
+  desiredPitch = normalize(values[1])/3.0;
 //   Serial.write("JoyStick 1 X: ");
 //   Serial.print(values[0], DEC);
 //   Serial.write("JoyStick 1 Y: ");
@@ -73,8 +73,9 @@ void handler2(BLEDevice central, BLECharacteristic characteristic){
 }
 
 void pulseHandler(BLEDevice central, BLECharacteristic characteristic){
-  // signed char values[1];
-  // characteristic.readValue(values, 1);
+  signed char values[1];
+  characteristic.readValue(values, 1);
+  Serial.println("p");
   pulseTimer = millis();
 }
 
@@ -105,7 +106,7 @@ void stablize() {
   float rollError = desiredRoll - mpu.getAngleX();
   float desiredAltitude = desiredThrottle - 0;
   
-  float kp = 0.5; // Proportional gain, tune this value
+  float kp = 0.35; // Proportional gain, tune this value
   motorSpeed[0] = STABLE + kp * (pitchError - rollError + desiredAltitude);
   motorSpeed[1] = STABLE + kp * (pitchError + rollError + desiredAltitude);
   motorSpeed[2] = STABLE + kp * (-pitchError + rollError + desiredAltitude);
@@ -120,7 +121,7 @@ void stablize() {
   myLedWrite(channelRigthDown, motorSpeed[2]); 
   myLedWrite(channelLeftDown, motorSpeed[3]); 
 
-	// Serial.println("\n");
+	Serial.println("\n");
 }
 
 void blePeripheralConnectHandler(BLEDevice central) {
@@ -176,13 +177,14 @@ void setup() {
 
   // allEngines(IDDLE_OFF);
   // state = FLY;
-  //startUpEngines();
+  // startUpEngines();
 }
  
 void loop() {
+  BLE.central();
 
   mpu.update();  
-  if((millis()-timer)>10){ // print data every 10ms
+  if((millis()-timer)>100){ // print data every 10ms
     // Serial.print("X : ");
     // Serial.print(mpu.getAngleX());
     // Serial.print("\tY : ");
@@ -196,8 +198,8 @@ void loop() {
   }
 
 
-  if((millis()-pulseTimer)>3000){ 
-    stop();
-    pulseTimer = millis();
-  }
+  // if((millis()-pulseTimer)>3000){ 
+  //   stop();
+  //   pulseTimer = millis();
+  // }
 }                   
