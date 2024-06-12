@@ -98,13 +98,13 @@ void startButtonHandler(BLEDevice central, BLECharacteristic characteristic) {
     break;
     case 1:
       Serial.write("IT'S MORBING TIME \n");
-      state = FLY;
-      desiredThrottle = 0;
       startUpEngines();
+      desiredThrottle = 0;
+      state = FLY;
     break;
     case 2:
       Serial.println("-1");
-      if(desiredThrottle <= 0)
+      if(desiredThrottle <= -30)
         break;
       --desiredThrottle;
     break;
@@ -122,6 +122,7 @@ void stablize() {
   if( state != FLY )
     return;
   float yawError = desiredYaw - mpu.getAngleZ();
+  yawError =  min(max(yawError, -60), 60)
   float pitchError = desiredPitch - mpu.getAngleY();
   float rollError = desiredRoll - mpu.getAngleX();
   float desiredAltitude = 0 - 0;
