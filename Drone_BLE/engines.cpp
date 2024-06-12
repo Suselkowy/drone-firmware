@@ -1,7 +1,7 @@
 #include "engines.h"
 
 void myLedWrite(int channel, int duty) {
-  if(channel != channelLeftUp )
+  if(channel != channelLeftUp && channel != channelRightUp )
     return;
   Serial.print(duty, DEC);
   Serial.write("\n");
