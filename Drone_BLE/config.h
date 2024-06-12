@@ -18,7 +18,7 @@ static const int pinLeftDown = D10;
 static const int channelLeftDown = 1;
 
 #define IDDLE 128 // 120
-#define STABLE IDDLE + 20 // 120
+#define STABLE IDDLE + 15 // 120
 #define IDDLE_OFF 120
 #define START_PWM 240
 #define PWM_HZ 400

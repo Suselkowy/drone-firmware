@@ -33,6 +33,7 @@ void startEngine(int channel) {
   myLedWrite(channel, START_PWM); 
   delay(500);
   myLedWrite(channel, IDDLE_OFF); 
+  delay(300);
 }
 
 void startUpEngines() {
@@ -41,4 +42,5 @@ void startUpEngines() {
   allEngines(START_PWM); 
   delay(500);
   allEngines(IDDLE_OFF); 
+  delay(300);
 }

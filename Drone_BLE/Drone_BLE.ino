@@ -40,7 +40,7 @@ void stop() {
 
 int normalize(int x) {
   // return ((x+100.0)/200.0) * 128;
-  return (((x))/100.0) * 40;
+  return (((x))/100.0) * 25;
 }
 
 void leding_time(int val1, int val2) {
@@ -99,7 +99,20 @@ void startButtonHandler(BLEDevice central, BLECharacteristic characteristic) {
     case 1:
       Serial.write("IT'S MORBING TIME \n");
       state = FLY;
+      desiredThrottle = 0;
       startUpEngines();
+    break;
+    case 2:
+      Serial.println("-1");
+      if(desiredThrottle <= 0)
+        break;
+      --desiredThrottle;
+    break;
+    case 3:
+      Serial.println("+1");
+      if(desiredThrottle >= 50)
+        break;
+      ++desiredThrottle;
     break;
   }
 
@@ -108,16 +121,16 @@ void startButtonHandler(BLEDevice central, BLECharacteristic characteristic) {
 void stablize() {
   if( state != FLY )
     return;
-  // float yawError = desiredYaw - mpu.getAngleX();
+  float yawError = desiredYaw - mpu.getAngleZ();
   float pitchError = desiredPitch - mpu.getAngleY();
   float rollError = desiredRoll - mpu.getAngleX();
-  float desiredAltitude = desiredThrottle - 0;
+  float desiredAltitude = 0 - 0;
   
-  float kp = 0.35; // Proportional gain, tune this value
-  motorSpeed[0] = STABLE + kp * (pitchError - rollError + desiredAltitude);
-  motorSpeed[1] = STABLE + kp * (pitchError + rollError + desiredAltitude);
-  motorSpeed[2] = STABLE + kp * (-pitchError + rollError + desiredAltitude);
-  motorSpeed[3] = STABLE + kp * (-pitchError - rollError + desiredAltitude);
+  float kp = 0.08; // Proportional gain, tune this value
+  motorSpeed[0] = STABLE + kp * (pitchError - rollError + desiredAltitude + yawError) + desiredThrottle;
+  motorSpeed[1] = STABLE + kp * (pitchError + rollError + desiredAltitude - yawError) + desiredThrottle;
+  motorSpeed[2] = STABLE + kp * (-pitchError + rollError + desiredAltitude + yawError) + desiredThrottle;
+  motorSpeed[3] = STABLE + kp * (-pitchError - rollError + desiredAltitude - yawError) + desiredThrottle;
 
   for( int i = 0 ; i < sizeof(motorSpeed)/sizeof(int); ++i ) {
     motorSpeed[i] = min(max(motorSpeed[i], IDDLE),255);
@@ -212,14 +225,14 @@ void loop() {
   BLE.central();
 
   mpu.update();  
-  if((millis()-timer)>100){ // print data every 10ms
+  if((millis()-timer)>10){ // print data every 10ms
     // Serial.print("X : ");
     // Serial.print(mpu.getAngleX());
     // Serial.print("\tY : ");
     // Serial.print(mpu.getAngleY());
     // Serial.print("\tZ : ");
     // Serial.println(mpu.getAngleZ());
-    Serial.println(bmp.readAltitude(1013.25));
+    // Serial.println(bmp.readAltitude(1013.25));
     timer = millis();  
     if( state == FLY ) {
       stablize();
