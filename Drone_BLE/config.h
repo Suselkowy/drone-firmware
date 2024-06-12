@@ -8,14 +8,14 @@
 static const int pinLeftUp = D7;
 static const int channelLeftUp = 4;
 
-static const int pinLeftDown = D8;
-static const int channelLeftDown = 1;
-
-static const int pinRightUp = D9;
+static const int pinRightUp = D8;
 static const int channelRightUp = 2;
 
-static const int pinRigthDown = D10;
+static const int pinRigthDown = D9;
 static const int channelRigthDown = 3;
+
+static const int pinLeftDown = D10;
+static const int channelLeftDown = 1;
 
 #define IDDLE 128 // 120
 #define STABLE IDDLE + 20 // 120
