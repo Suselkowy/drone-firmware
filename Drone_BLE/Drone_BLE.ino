@@ -25,9 +25,19 @@ int desiredYaw = 0;
 int desiredPitch = 0;
 int desiredRoll = 0;
 
+float yawErrorSum = 0;
+float pitchErrorSum = 0;
+float rollErrorSum = 0;
+
 int state = STOP;
 
 int motorSpeed[4];
+
+void clearIntegral() {
+  yawErrorSum = 0;
+  pitchErrorSum = 0;
+  rollErrorSum = 0;
+}
 
 void stop() {
   state = STOP;
@@ -35,12 +45,14 @@ void stop() {
   desiredYaw = 0;
   desiredPitch = 0;
   desiredRoll = 0;
+  clearIntegral();
+
   allEngines(0);
 }
 
 int normalize(int x) {
   // return ((x+100.0)/200.0) * 128;
-  return (((x))/100.0) * 25;
+  return (((x))/100.0) * 30;
 }
 
 void leding_time(int val1, int val2) {
@@ -100,13 +112,13 @@ void startButtonHandler(BLEDevice central, BLECharacteristic characteristic) {
       Serial.write("IT'S MORBING TIME \n");
       startUpEngines();
       desiredThrottle = 0;
+      clearIntegral();
       state = FLY;
     break;
     case 2:
       Serial.println("-1");
-      if(desiredThrottle <= -30)
-        break;
-      --desiredThrottle;
+      clearIntegral();
+      mpu.calcOffsets();
     break;
     case 3:
       Serial.println("+1");
@@ -122,19 +134,39 @@ void stablize() {
   if( state != FLY )
     return;
   float yawError = desiredYaw - mpu.getAngleZ();
-  yawError =  min(max(yawError, -60), 60)
+  yawError =  min(max(yawError, -60.0f), 60.0f);
   float pitchError = desiredPitch - mpu.getAngleY();
   float rollError = desiredRoll - mpu.getAngleX();
   float desiredAltitude = 0 - 0;
   
-  float kp = 0.08; // Proportional gain, tune this value
+  float kp = 0.15; // Proportional gain, tune this value
   motorSpeed[0] = STABLE + kp * (pitchError - rollError + desiredAltitude + yawError) + desiredThrottle;
   motorSpeed[1] = STABLE + kp * (pitchError + rollError + desiredAltitude - yawError) + desiredThrottle;
   motorSpeed[2] = STABLE + kp * (-pitchError + rollError + desiredAltitude + yawError) + desiredThrottle;
   motorSpeed[3] = STABLE + kp * (-pitchError - rollError + desiredAltitude - yawError) + desiredThrottle;
 
+  #define MAX_INTEGRAL 100.0f
+
+  #define PRZELICZNIK_KUMULACJI 0.1f
+
+  pitchErrorSum += PRZELICZNIK_KUMULACJI * pitchError;
+  rollErrorSum += PRZELICZNIK_KUMULACJI * rollError;
+  yawErrorSum += PRZELICZNIK_KUMULACJI * yawError;
+
+  pitchErrorSum = min(max(pitchErrorSum, -MAX_INTEGRAL), MAX_INTEGRAL);
+  rollErrorSum = min(max(rollErrorSum, -MAX_INTEGRAL), MAX_INTEGRAL);
+  yawErrorSum =  min(max(yawErrorSum, -MAX_INTEGRAL), MAX_INTEGRAL);
+
+  #define MAX_INTEGRAL_MOTOR 24.0f
+
+  float ki = 0.045; // Proportional gain, tune this value
+  motorSpeed[0] += min( ki * (pitchErrorSum - rollErrorSum + yawErrorSum), MAX_INTEGRAL_MOTOR );
+  motorSpeed[1] += min( ki * (pitchErrorSum + rollErrorSum - yawErrorSum), MAX_INTEGRAL_MOTOR );
+  motorSpeed[2] += min( ki * (-pitchErrorSum + rollErrorSum + yawErrorSum), MAX_INTEGRAL_MOTOR );
+  motorSpeed[3] += min( ki * (-pitchErrorSum - rollErrorSum - yawErrorSum), MAX_INTEGRAL_MOTOR );
+
   for( int i = 0 ; i < sizeof(motorSpeed)/sizeof(int); ++i ) {
-    motorSpeed[i] = min(max(motorSpeed[i], IDDLE),255);
+    motorSpeed[i] = min(max(motorSpeed[i], IDDLE),220);
   }
 
   myLedWrite(channelLeftUp, motorSpeed[0]); 
@@ -234,6 +266,14 @@ void loop() {
     // Serial.print("\tZ : ");
     // Serial.println(mpu.getAngleZ());
     // Serial.println(bmp.readAltitude(1013.25));
+
+    Serial.print("X : ");
+    Serial.print(rollErrorSum);
+    Serial.print("\tY : ");
+    Serial.print(pitchErrorSum);
+    Serial.print("\tZ : ");
+    Serial.println(yawErrorSum);
+
     timer = millis();  
     if( state == FLY ) {
       stablize();
