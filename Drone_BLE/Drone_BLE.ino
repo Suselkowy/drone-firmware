@@ -8,7 +8,7 @@ BLEIntCharacteristic pulseCharacteristic("19b10010-e8f2-537e-4f6c-d104768a1214",
 
 #include "Wire.h"
 #include <MPU6050_light.h>
-#include <Adafruit_BMP280.h>
+// #include <Adafruit_BMP280.h>
 
 #define BMP_SCK  (13)
 #define BMP_MISO (12)
@@ -16,7 +16,7 @@ BLEIntCharacteristic pulseCharacteristic("19b10010-e8f2-537e-4f6c-d104768a1214",
 #define BMP_CS   (10)
 
 MPU6050 mpu(Wire);
-Adafruit_BMP280 bmp; 
+// Adafruit_BMP280 bmp; 
 unsigned long timer = 0;
 unsigned long pulseTimer = 0;
 
@@ -109,8 +109,10 @@ void startButtonHandler(BLEDevice central, BLECharacteristic characteristic) {
       stop();
     break;
     case 1:
+      if(state != ON ) {
+        break;
+      }
       Serial.write("IT'S MORBING TIME \n");
-      startUpEngines();
       desiredThrottle = 0;
       clearIntegral();
       state = FLY;
@@ -118,13 +120,16 @@ void startButtonHandler(BLEDevice central, BLECharacteristic characteristic) {
     case 2:
       Serial.println("-1");
       clearIntegral();
+      mpu.angleX = 0;
+      mpu.angleY = 0;
+      mpu.angleZ = 0;
       mpu.calcOffsets();
     break;
     case 3:
-      Serial.println("+1");
-      if(desiredThrottle >= 50)
-        break;
-      ++desiredThrottle;
+      Serial.write("ON \n");
+      startUpEngines();
+      desiredThrottle = 0;
+      state = ON;
     break;
   }
 
@@ -135,23 +140,30 @@ void stablize() {
     return;
   float yawError = desiredYaw - mpu.getAngleZ();
   yawError =  min(max(yawError, -60.0f), 60.0f);
-  float pitchError = desiredPitch - mpu.getAngleY();
-  float rollError = desiredRoll - mpu.getAngleX();
-  float desiredAltitude = 0 - 0;
+  // yawError = 0;
   
-  float kp = 0.15; // Proportional gain, tune this value
-  motorSpeed[0] = STABLE + kp * (pitchError - rollError + desiredAltitude + yawError) + desiredThrottle;
-  motorSpeed[1] = STABLE + kp * (pitchError + rollError + desiredAltitude - yawError) + desiredThrottle;
-  motorSpeed[2] = STABLE + kp * (-pitchError + rollError + desiredAltitude + yawError) + desiredThrottle;
-  motorSpeed[3] = STABLE + kp * (-pitchError - rollError + desiredAltitude - yawError) + desiredThrottle;
+  float pitchError = desiredPitch + mpu.getAngleY();
+  float rollError = desiredRoll + mpu.getAngleX();
+  float desiredAltitude = 0 - 0;
+
+  // yawError = 0;
+  // pitchError = 0;
+  // rollError = 0;
+  
+  float kp = 1.0; // Proportional gain, tune this value
+  motorSpeed[0] = STABLE + kp * (pitchError - rollError + desiredAltitude + yawError) + desiredThrottle + BIAS_TYL;
+  motorSpeed[1] = STABLE + kp * (pitchError + rollError + desiredAltitude - yawError) + desiredThrottle + BIAS_TYL + 5;
+  motorSpeed[2] = STABLE + kp * (-pitchError + rollError + desiredAltitude + yawError) + desiredThrottle - BIAS_TYL;
+  motorSpeed[3] = STABLE + kp * (-pitchError - rollError + desiredAltitude - yawError) + desiredThrottle - BIAS_TYL;
+
+  #ifdef INTEGRAL
 
   #define MAX_INTEGRAL 100.0f
-
   #define PRZELICZNIK_KUMULACJI 0.1f
 
   pitchErrorSum += PRZELICZNIK_KUMULACJI * pitchError;
   rollErrorSum += PRZELICZNIK_KUMULACJI * rollError;
-  yawErrorSum += PRZELICZNIK_KUMULACJI * yawError;
+  // yawErrorSum += PRZELICZNIK_KUMULACJI * yawError;
 
   pitchErrorSum = min(max(pitchErrorSum, -MAX_INTEGRAL), MAX_INTEGRAL);
   rollErrorSum = min(max(rollErrorSum, -MAX_INTEGRAL), MAX_INTEGRAL);
@@ -159,14 +171,16 @@ void stablize() {
 
   #define MAX_INTEGRAL_MOTOR 24.0f
 
-  float ki = 0.045; // Proportional gain, tune this value
+  float ki = 0.2; // Proportional gain, tune this value
   motorSpeed[0] += min( ki * (pitchErrorSum - rollErrorSum + yawErrorSum), MAX_INTEGRAL_MOTOR );
   motorSpeed[1] += min( ki * (pitchErrorSum + rollErrorSum - yawErrorSum), MAX_INTEGRAL_MOTOR );
   motorSpeed[2] += min( ki * (-pitchErrorSum + rollErrorSum + yawErrorSum), MAX_INTEGRAL_MOTOR );
   motorSpeed[3] += min( ki * (-pitchErrorSum - rollErrorSum - yawErrorSum), MAX_INTEGRAL_MOTOR );
 
+  #endif
+
   for( int i = 0 ; i < sizeof(motorSpeed)/sizeof(int); ++i ) {
-    motorSpeed[i] = min(max(motorSpeed[i], IDDLE),220);
+    motorSpeed[i] = min(max(motorSpeed[i], IDDLE_OFF),220);
   }
 
   myLedWrite(channelLeftUp, motorSpeed[0]); 
@@ -174,7 +188,9 @@ void stablize() {
   myLedWrite(channelRigthDown, motorSpeed[2]); 
   myLedWrite(channelLeftDown, motorSpeed[3]); 
 
+  #ifdef DEBUG
 	Serial.println("\n");
+  #endif
 }
 
 void blePeripheralConnectHandler(BLEDevice central) {
@@ -194,26 +210,26 @@ void setup() {
   Serial.begin(9600);
   Wire.begin();
 
-  unsigned bmpStatus;
-  //status = bmp.begin(BMP280_ADDRESS_ALT, BMP280_CHIPID);
-  bmpStatus = bmp.begin(0x76);
-  if (!bmpStatus) {
-    Serial.println(F("Could not find a valid BMP280 sensor, check wiring or "
-                      "try a different address!"));
-    Serial.print("SensorID was: 0x"); Serial.println(bmp.sensorID(),16);
-    Serial.print("        ID of 0xFF probably means a bad address, a BMP 180 or BMP 085\n");
-    Serial.print("   ID of 0x56-0x58 represents a BMP 280,\n");
-    Serial.print("        ID of 0x60 represents a BME 280.\n");
-    Serial.print("        ID of 0x61 represents a BME 680.\n");
-    while (1) delay(10);
-  }
+  // unsigned bmpStatus;
+  // //status = bmp.begin(BMP280_ADDRESS_ALT, BMP280_CHIPID);
+  // bmpStatus = bmp.begin(0x76);
+  // if (!bmpStatus) {
+  //   Serial.println(F("Could not find a valid BMP280 sensor, check wiring or "
+  //                     "try a different address!"));
+  //   Serial.print("SensorID was: 0x"); Serial.println(bmp.sensorID(),16);
+  //   Serial.print("        ID of 0xFF probably means a bad address, a BMP 180 or BMP 085\n");
+  //   Serial.print("   ID of 0x56-0x58 represents a BMP 280,\n");
+  //   Serial.print("        ID of 0x60 represents a BME 280.\n");
+  //   Serial.print("        ID of 0x61 represents a BME 680.\n");
+  //   while (1) delay(10);
+  // }
 
-  /* Default settings from datasheet. */
-  bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,     /* Operating Mode. */
-                  Adafruit_BMP280::SAMPLING_X2,     /* Temp. oversampling */
-                  Adafruit_BMP280::SAMPLING_X16,    /* Pressure oversampling */
-                  Adafruit_BMP280::FILTER_X16,      /* Filtering. */
-                  Adafruit_BMP280::STANDBY_MS_500); /* Standby time. */
+  // /* Default settings from datasheet. */
+  // bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,     /* Operating Mode. */
+  //                 Adafruit_BMP280::SAMPLING_X2,     /* Temp. oversampling */
+  //                 Adafruit_BMP280::SAMPLING_X16,    /* Pressure oversampling */
+  //                 Adafruit_BMP280::FILTER_X16,      /* Filtering. */
+  //                 Adafruit_BMP280::STANDBY_MS_500); /* Standby time. */
 
   byte status = mpu.begin();
   Serial.print(F("MPU6050 status: "));
@@ -224,6 +240,8 @@ void setup() {
   delay(1000);
   mpu.upsideDownMounting = true; // uncomment this line if the MPU6050 is mounted upside-down
   mpu.calcOffsets(); // gyro and accelero
+  // mpu.setAccOffsets(-0.15, -0.07, -1.33);
+  // mpu.setGyroOffsets(0.57 , 0.68, -0.34);
 
   setUpPwm();
 
@@ -256,9 +274,26 @@ void setup() {
  
 void loop() {
   BLE.central();
+  mpu.update(); 
+ 
+  if((millis()-timer)>6){ // print data every 10ms
+  
+#ifdef DEBUG  
 
-  mpu.update();  
-  if((millis()-timer)>10){ // print data every 10ms
+    // Serial.print("AX : ");
+    // Serial.print(mpu.getAccXoffset());
+    // Serial.print("\tAY : ");
+    // Serial.print(mpu.getAccYoffset());
+    // Serial.print("\tAZ : ");
+    // Serial.println(mpu.getAccZoffset());
+    // Serial.print("GX : ");
+    // Serial.print(mpu.getGyroXoffset());
+    // Serial.print("\tGY : ");
+    // Serial.print(mpu.getGyroYoffset());
+    // Serial.print("\tGZ : ");
+    // Serial.println(mpu.getGyroZoffset());
+
+
     // Serial.print("X : ");
     // Serial.print(mpu.getAngleX());
     // Serial.print("\tY : ");
@@ -273,7 +308,7 @@ void loop() {
     Serial.print(pitchErrorSum);
     Serial.print("\tZ : ");
     Serial.println(yawErrorSum);
-
+#endif
     timer = millis();  
     if( state == FLY ) {
       stablize();

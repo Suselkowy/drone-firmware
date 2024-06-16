@@ -5,6 +5,9 @@
 #include "esp32-hal.h"
 #include "engines.h"
 
+// #define DEBUG
+// #define INTEGRAL
+
 static const int pinLeftUp = D7;
 static const int channelLeftUp = 4;
 
@@ -18,9 +21,10 @@ static const int pinLeftDown = D10;
 static const int channelLeftDown = 1;
 
 #define IDDLE 128 // 120
-#define STABLE IDDLE + 15 // 120
+#define STABLE IDDLE + 37 // 120
 #define IDDLE_OFF 120
 #define START_PWM 240
+#define BIAS_TYL 9
 #define PWM_HZ 400
 #define PWM_RES 8
 

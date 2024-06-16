@@ -1,8 +1,10 @@
 #include "engines.h"
 
 void myLedWrite(int channel, int duty) {
+  #ifdef DEBUG
   Serial.print(duty, DEC);
   Serial.write("\n");
+  #endif
   ledcWrite(channel,duty);
 }
 
