@@ -264,7 +264,8 @@ void setup() {
   BLE.setEventHandler(BLEDisconnected, blePeripheralDisconnectHandler); 
   BLE.addService(LEDService);                                   // add service
   BLE.advertise();
-  Serial.write("Start\n"); 
+
+  Serial.write("Setup end\n"); 
 
 
   // allEngines(IDDLE_OFF);
@@ -279,7 +280,6 @@ void loop() {
   if((millis()-timer)>6){ // print data every 10ms
   
 #ifdef DEBUG  
-
     // Serial.print("AX : ");
     // Serial.print(mpu.getAccXoffset());
     // Serial.print("\tAY : ");

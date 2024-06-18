@@ -20,8 +20,8 @@ static const int channelRigthDown = 3;
 static const int pinLeftDown = D10;
 static const int channelLeftDown = 1;
 
-#define IDDLE 128 // 120
-#define STABLE IDDLE + 37 // 120
+#define IDDLE 128 
+#define STABLE IDDLE + 37 
 #define IDDLE_OFF 120
 #define START_PWM 240
 #define BIAS_TYL 9
